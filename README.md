@@ -54,3 +54,16 @@ Spring Boot backend service for managing Participant Banks and Authentication.
 ```
 
 Access Swagger UI: `http://localhost:9081/swagger-ui.html`
+
+## Static Login Frontend
+
+The Angular login demo is in the `frontend` directory. From that directory, run:
+
+```bash
+npm install
+npm start
+```
+
+Open `http://localhost:4200`. Use `admin` / `Admin@123` to see the success
+message. This task uses client-side demo credentials only; it does not
+authenticate with the backend.
