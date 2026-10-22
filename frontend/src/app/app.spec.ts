@@ -1,49 +1,71 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { App } from './app';
+import { Router } from '@angular/router';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { routes } from './app.routes';
+import { LoginComponent } from './login/login';
+import { ParticipantsComponent } from './participants/participants';
 
-describe('App', () => {
-  let fixture: ComponentFixture<App>;
+describe('LoginComponent', () => {
+  let fixture: ComponentFixture<LoginComponent>;
+  let navigate: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
+    navigate = vi.fn().mockResolvedValue(true);
     await TestBed.configureTestingModule({
-      imports: [App],
+      imports: [LoginComponent],
+      providers: [{ provide: Router, useValue: { navigate } }],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(App);
+    fixture = TestBed.createComponent(LoginComponent);
     fixture.detectChanges();
   });
 
-  it('shows an error when the fields are empty', () => {
-    submitLogin('', '');
+  it('shows an error when the fields are empty', async () => {
+    await submitLogin('', '');
 
     expect(alertMessage()).toContain('Enter both your username and password.');
     expect(feedbackAlert().classList.contains('alert-danger')).toBe(true);
   });
 
-  it('rejects a username containing only whitespace', () => {
-    submitLogin('   ', 'Admin@123');
+  it('rejects a username containing only whitespace', async () => {
+    await submitLogin('   ', 'Admin@123');
 
     expect(alertMessage()).toContain('Enter both your username and password.');
   });
 
-  it('shows an error for incorrect credentials', () => {
-    submitLogin('admin', 'incorrect');
+  it('shows an error for incorrect credentials', async () => {
+    await submitLogin('admin', 'incorrect');
 
     expect(alertMessage()).toContain('The username or password is incorrect.');
   });
 
-  it('shows success for the demo credentials', () => {
-    submitLogin('admin', 'Admin@123');
+  it('navigates to participants for the demo credentials', async () => {
+    await submitLogin('admin', 'Admin@123');
 
     expect(alertMessage()).toContain('Login successful.');
     expect(feedbackAlert().classList.contains('alert-success')).toBe(true);
+    expect(navigate).toHaveBeenCalledWith(['/participants']);
   });
 
   it('masks the password input', () => {
     expect(getInput('password').type).toBe('password');
   });
 
-  function submitLogin(username: string, password: string): void {
+  it('redirects the default route to login', async () => {
+    const defaultRoute = routes.find((route) => route.path === '');
+
+    expect(defaultRoute?.pathMatch).toBe('full');
+    expect(defaultRoute?.redirectTo).toBe('login');
+  });
+
+  it('navigates to login when logging out', () => {
+    const participants = TestBed.createComponent(ParticipantsComponent);
+    participants.componentInstance.logout();
+
+    expect(navigate).toHaveBeenCalledWith(['/login']);
+  });
+
+  async function submitLogin(username: string, password: string): Promise<void> {
     setInputValue('username', username);
     setInputValue('password', password);
     const form = (fixture.nativeElement as HTMLElement).querySelector('form');
@@ -52,6 +74,8 @@ describe('App', () => {
     }
 
     form.requestSubmit();
+    fixture.detectChanges();
+    await fixture.whenStable();
     fixture.detectChanges();
   }
 
