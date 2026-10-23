@@ -111,3 +111,68 @@ describe('LoginComponent', () => {
     return alert;
   }
 });
+
+describe('ParticipantsComponent', () => {
+  let fixture: ComponentFixture<ParticipantsComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ParticipantsComponent],
+      providers: [{ provide: Router, useValue: { navigate: vi.fn() } }],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(ParticipantsComponent);
+    fixture.detectChanges();
+  });
+
+  it('displays all five participant banks and their details', () => {
+    const rows = (fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr');
+
+    expect(rows).toHaveLength(5);
+    expect(fixture.nativeElement.textContent).toContain('First National Bank');
+    expect(fixture.nativeElement.textContent).toContain('FNBKUS33');
+    expect(fixture.nativeElement.textContent).toContain('Central Cooperative Bank');
+  });
+
+  it('filters participants by bank name or BIC as the user types', async () => {
+    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      '#participant-search',
+    );
+    if (!input) {
+      throw new Error('Expected the participant search input to exist.');
+    }
+
+    input.value = 'smtbus55';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const rows = (fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toContain('Summit Trust Bank');
+  });
+
+  it('shows the empty state when no participants match', async () => {
+    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      '#participant-search',
+    );
+    if (!input) {
+      throw new Error('Expected the participant search input to exist.');
+    }
+
+    input.value = 'no matching bank';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('No participant banks found');
+  });
+
+  it('uses green and grey badges for active and inactive participants', () => {
+    const badges = (fixture.nativeElement as HTMLElement).querySelectorAll('.badge');
+
+    expect(badges).toHaveLength(5);
+    expect(badges[0].classList.contains('bg-success')).toBe(true);
+    expect(badges[2].classList.contains('bg-secondary')).toBe(true);
+  });
+});

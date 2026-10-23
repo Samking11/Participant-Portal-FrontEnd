@@ -3,3 +3,7 @@
   min-height: 100vh;
   background: #f4f6f9;
 }
+
+.search-field {
+  width: min(100%, 24rem);
+}
