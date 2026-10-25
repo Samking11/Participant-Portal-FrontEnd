@@ -3,7 +3,9 @@ import { Router } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { routes } from './app.routes';
 import { LoginComponent } from './login/login';
+import { ParticipantFormComponent } from './participants/participant-form';
 import { ParticipantsComponent } from './participants/participants';
+import { ParticipantService } from './participants/participant.service';
 
 describe('LoginComponent', () => {
   let fixture: ComponentFixture<LoginComponent>;
@@ -56,6 +58,12 @@ describe('LoginComponent', () => {
 
     expect(defaultRoute?.pathMatch).toBe('full');
     expect(defaultRoute?.redirectTo).toBe('login');
+  });
+
+  it('registers the participant form route', () => {
+    expect(typeof routes.find((route) => route.path === 'participants/new')?.loadComponent).toBe(
+      'function',
+    );
   });
 
   it('navigates to login when logging out', () => {
@@ -114,11 +122,13 @@ describe('LoginComponent', () => {
 
 describe('ParticipantsComponent', () => {
   let fixture: ComponentFixture<ParticipantsComponent>;
+  let navigate: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
+    navigate = vi.fn();
     await TestBed.configureTestingModule({
       imports: [ParticipantsComponent],
-      providers: [{ provide: Router, useValue: { navigate: vi.fn() } }],
+      providers: [{ provide: Router, useValue: { navigate } }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ParticipantsComponent);
@@ -132,6 +142,22 @@ describe('ParticipantsComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('First National Bank');
     expect(fixture.nativeElement.textContent).toContain('FNBKUS33');
     expect(fixture.nativeElement.textContent).toContain('Central Cooperative Bank');
+  });
+
+  it('displays participants added to the shared service', () => {
+    TestBed.inject(ParticipantService).addParticipant({
+      name: 'New Bank',
+      bic: 'NEWBUS88',
+      shortName: 'New',
+      email: 'contact@newbank.example',
+      phoneNumber: '+1 202 555 0108',
+      status: 'ACTIVE',
+    });
+    fixture.detectChanges();
+
+    const rows = (fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr');
+    expect(rows).toHaveLength(6);
+    expect(fixture.nativeElement.textContent).toContain('NEWBUS88');
   });
 
   it('filters participants by bank name or BIC as the user types', async () => {
@@ -174,5 +200,87 @@ describe('ParticipantsComponent', () => {
     expect(badges).toHaveLength(5);
     expect(badges[0].classList.contains('bg-success')).toBe(true);
     expect(badges[2].classList.contains('bg-secondary')).toBe(true);
+  });
+  it('opens the registration form from Add Participant', () => {
+    const addButton = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('button'),
+    ).find((button) => button.textContent?.includes('Add Participant'));
+
+    if (!addButton) {
+      throw new Error('Expected the Add Participant button to exist.');
+    }
+
+    addButton.click();
+
+    expect(navigate).toHaveBeenCalledWith(['/participants/new']);
+  });
+});
+
+describe('ParticipantFormComponent', () => {
+  let fixture: ComponentFixture<ParticipantFormComponent>;
+  let participantService: ParticipantService;
+  let navigate: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    navigate = vi.fn();
+    await TestBed.configureTestingModule({
+      imports: [ParticipantFormComponent],
+      providers: [{ provide: Router, useValue: { navigate } }],
+    }).compileComponents();
+
+    participantService = TestBed.inject(ParticipantService);
+    fixture = TestBed.createComponent(ParticipantFormComponent);
+    fixture.detectChanges();
+  });
+
+  it('saves a participant and returns to the list', () => {
+    fixture.componentInstance.participantForm.setValue({
+      name: 'New Bank',
+      bic: 'NEWBUS88',
+      shortName: 'New',
+      email: 'contact@newbank.example',
+      phone: '+1 202 555 0108',
+      status: 'INACTIVE',
+    });
+    const initialCount = participantService.participants.length;
+
+    fixture.componentInstance.save();
+
+    expect(participantService.participants).toHaveLength(initialCount + 1);
+    expect(participantService.participants.at(-1)).toEqual({
+      id: 6,
+      name: 'New Bank',
+      bic: 'NEWBUS88',
+      shortName: 'New',
+      email: 'contact@newbank.example',
+      phoneNumber: '+1 202 555 0108',
+      status: 'INACTIVE',
+    });
+    expect(navigate).toHaveBeenCalledWith(['/participants']);
+  });
+
+  it('cancels without changing participants', () => {
+    fixture.componentInstance.participantForm.patchValue({
+      name: 'Unsaved Bank',
+      bic: 'UNSAVED1',
+    });
+    const initialCount = participantService.participants.length;
+
+    fixture.componentInstance.cancel();
+
+    expect(participantService.participants).toHaveLength(initialCount);
+    expect(navigate).toHaveBeenCalledWith(['/participants']);
+  });
+
+  it('does not save an invalid form', () => {
+    fixture.componentInstance.save();
+
+    expect(participantService.participants).toHaveLength(5);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.participantForm.controls.name.touched).toBe(true);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('[role="alert"]')?.textContent).toContain(
+      'Complete all required fields',
+    );
   });
 });
