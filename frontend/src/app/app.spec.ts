@@ -201,7 +201,6 @@ describe('ParticipantsComponent', () => {
     expect(badges[0].classList.contains('bg-success')).toBe(true);
     expect(badges[2].classList.contains('bg-secondary')).toBe(true);
   });
-
   it('opens the registration form from Add Participant', () => {
     const addButton = Array.from(
       (fixture.nativeElement as HTMLElement).querySelectorAll('button'),
