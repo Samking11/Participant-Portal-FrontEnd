@@ -1,7 +1,11 @@
 # Participant Bank Login Demo
 
-This Angular frontend demonstrates a centered Bootstrap login form with
-client-side credential validation.
+This Angular frontend demonstrates a Bootstrap login form with client-side
+credential validation and a participant bank list.
+
+Participant banks can be registered at `/participants/new`. New entries are
+stored in a shared in-memory Angular service and remain available while the
+application is running; they are not persisted after a page reload.
 
 ## Run locally
 

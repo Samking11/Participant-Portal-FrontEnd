@@ -9,16 +9,21 @@
       <h1 class="h3 mb-1">Participants</h1>
       <p class="text-secondary mb-0">View and search participant banks.</p>
     </div>
-    <div class="search-field">
-      <label for="participant-search" class="form-label">Search by bank name or BIC</label>
-      <input
-        id="participant-search"
-        class="form-control"
-        type="search"
-        name="participantSearch"
-        placeholder="Enter a bank name or BIC"
-        [(ngModel)]="searchTerm"
-      />
+    <div class="d-flex flex-column flex-sm-row gap-3 align-items-sm-end">
+      <div class="search-field">
+        <label for="participant-search" class="form-label">Search by bank name or BIC</label>
+        <input
+          id="participant-search"
+          class="form-control"
+          type="search"
+          name="participantSearch"
+          placeholder="Enter a bank name or BIC"
+          [(ngModel)]="searchTerm"
+        />
+      </div>
+      <button type="button" class="btn btn-primary flex-shrink-0" (click)="addParticipant()">
+        Add Participant
+      </button>
     </div>
   </div>
 

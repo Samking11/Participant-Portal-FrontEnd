@@ -1,0 +1,55 @@
+<header class="navbar navbar-dark bg-primary px-3">
+  <span class="navbar-brand mb-0 h1">Participant Bank Portal</span>
+  <button type="button" class="btn btn-outline-light" (click)="cancel()">Cancel</button>
+</header>
+
+<main class="container py-4">
+  <section class="card shadow-sm" aria-labelledby="participant-form-title">
+    <div class="card-body p-4">
+      <h1 id="participant-form-title" class="h3 mb-4">Register participant</h1>
+
+      <form [formGroup]="participantForm" (ngSubmit)="save()" novalidate>
+        @if (submitted && participantForm.invalid) {
+          <div class="alert alert-danger" role="alert">
+            Complete all required fields and enter a valid email address.
+          </div>
+        }
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label for="name" class="form-label">Name</label>
+            <input id="name" class="form-control" formControlName="name" required />
+          </div>
+          <div class="col-md-6">
+            <label for="bic" class="form-label">BIC</label>
+            <input id="bic" class="form-control" formControlName="bic" required />
+          </div>
+          <div class="col-md-6">
+            <label for="shortName" class="form-label">Short name</label>
+            <input id="shortName" class="form-control" formControlName="shortName" required />
+          </div>
+          <div class="col-md-6">
+            <label for="email" class="form-label">Email</label>
+            <input id="email" type="email" class="form-control" formControlName="email" required />
+          </div>
+          <div class="col-md-6">
+            <label for="phone" class="form-label">Phone</label>
+            <input id="phone" type="tel" class="form-control" formControlName="phone" required />
+          </div>
+          <div class="col-md-6">
+            <label for="status" class="form-label">Status</label>
+            <select id="status" class="form-select" formControlName="status" required>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4">
+          <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </section>
+</main>
