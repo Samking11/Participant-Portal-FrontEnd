@@ -20,8 +20,16 @@ export class ParticipantFormComponent {
   private readonly participantId = Number(this.route?.snapshot.paramMap.get('id'));
 
   readonly participantForm = this.formBuilder.group({
-    name: ['', [Validators.required, Validators.pattern(/\S/)]],
-    bic: ['', [Validators.required, Validators.pattern(/\S/)]],
+    name: ['', Validators.required],
+    bic: [
+      '',
+      [
+        Validators.required,
+        Validators.minLength(8),
+        Validators.maxLength(11),
+        Validators.pattern(/^[A-Za-z0-9]+$/),
+      ],
+    ],
     shortName: ['', [Validators.required, Validators.pattern(/\S/)]],
     email: ['', [Validators.required, Validators.email]],
     phone: ['', [Validators.required, Validators.pattern(/\S/)]],
@@ -29,6 +37,11 @@ export class ParticipantFormComponent {
   });
 
   submitted = false;
+
+  isInvalid(controlName: keyof typeof this.participantForm.controls): boolean {
+    const control = this.participantForm.controls[controlName];
+    return control.invalid && control.touched;
+  }
 
   constructor() {
     if (!this.isEditMode) {
