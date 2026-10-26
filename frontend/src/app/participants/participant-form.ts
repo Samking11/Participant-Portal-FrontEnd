@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ParticipantService, ParticipantStatus } from './participant.service';
 
 @Component({
@@ -14,6 +14,10 @@ export class ParticipantFormComponent {
   private readonly formBuilder = inject(FormBuilder).nonNullable;
   private readonly participantService = inject(ParticipantService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute, { optional: true });
+
+  readonly isEditMode = this.route?.snapshot.paramMap.has('id') ?? false;
+  private readonly participantId = Number(this.route?.snapshot.paramMap.get('id'));
 
   readonly participantForm = this.formBuilder.group({
     name: ['', [Validators.required, Validators.pattern(/\S/)]],
@@ -26,6 +30,29 @@ export class ParticipantFormComponent {
 
   submitted = false;
 
+  constructor() {
+    if (!this.isEditMode) {
+      return;
+    }
+
+    const participant = this.participantService.getParticipant(this.participantId);
+
+    if (!participant) {
+      window.alert('Participant not found.');
+      this.router.navigate(['/participants']);
+      return;
+    }
+
+    this.participantForm.patchValue({
+      name: participant.name,
+      bic: participant.bic,
+      shortName: participant.shortName,
+      email: participant.email,
+      phone: participant.phoneNumber,
+      status: participant.status,
+    });
+  }
+
   save(): void {
     if (this.participantForm.invalid) {
       this.submitted = true;
@@ -35,14 +62,21 @@ export class ParticipantFormComponent {
 
     this.submitted = false;
     const { name, bic, shortName, email, phone, status } = this.participantForm.getRawValue();
-    this.participantService.addParticipant({
+    const participant = {
       name: name.trim(),
       bic: bic.trim(),
       shortName: shortName.trim(),
       email: email.trim(),
       phoneNumber: phone.trim(),
       status,
-    });
+    };
+
+    if (this.isEditMode) {
+      this.participantService.updateParticipant(this.participantId, participant);
+    } else {
+      this.participantService.addParticipant(participant);
+    }
+
     this.router.navigate(['/participants']);
   }
 

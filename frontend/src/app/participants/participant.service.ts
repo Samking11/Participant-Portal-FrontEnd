@@ -70,4 +70,19 @@ export class ParticipantService {
     this.participants.push(newParticipant);
     return newParticipant;
   }
+
+  getParticipant(id: number): Participant | undefined {
+    return this.participants.find((participant) => participant.id === id);
+  }
+
+  updateParticipant(id: number, participant: Omit<Participant, 'id'>): Participant | undefined {
+    const existingParticipant = this.getParticipant(id);
+
+    if (!existingParticipant) {
+      return undefined;
+    }
+
+    Object.assign(existingParticipant, participant);
+    return existingParticipant;
+  }
 }

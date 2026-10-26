@@ -38,4 +38,8 @@ export class ParticipantsComponent {
   addParticipant(): void {
     this.router.navigate(['/participants/new']);
   }
+
+  editParticipant(id: number): void {
+    this.router.navigate(['/participants/edit', id]);
+  }
 }

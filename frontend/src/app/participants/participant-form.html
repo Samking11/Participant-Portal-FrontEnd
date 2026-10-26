@@ -6,7 +6,9 @@
 <main class="container py-4">
   <section class="card shadow-sm" aria-labelledby="participant-form-title">
     <div class="card-body p-4">
-      <h1 id="participant-form-title" class="h3 mb-4">Register participant</h1>
+      <h1 id="participant-form-title" class="h3 mb-4">
+        {{ isEditMode ? 'Edit participant' : 'Register participant' }}
+      </h1>
 
       <form [formGroup]="participantForm" (ngSubmit)="save()" novalidate>
         @if (submitted && participantForm.invalid) {
@@ -47,7 +49,9 @@
 
         <div class="d-flex justify-content-end gap-2 mt-4">
           <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="submit" class="btn btn-primary">
+            {{ isEditMode ? 'Update' : 'Save' }}
+          </button>
         </div>
       </form>
     </div>
