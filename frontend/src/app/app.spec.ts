@@ -280,7 +280,58 @@ describe('ParticipantFormComponent', () => {
     expect(fixture.componentInstance.participantForm.controls.name.touched).toBe(true);
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('[role="alert"]')?.textContent).toContain(
-      'Complete all required fields',
+      'Fix the highlighted fields',
+    );
+  });
+
+  it('disables saving until the form is valid', () => {
+    const saveButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'button[type="submit"]',
+    );
+
+    expect(saveButton?.disabled).toBe(true);
+
+    fixture.componentInstance.participantForm.setValue({
+      name: 'Valid Bank',
+      bic: 'VALIDBIC',
+      shortName: 'Valid',
+      email: 'contact@valid.example',
+      phone: '+1 202 555 0109',
+      status: 'ACTIVE',
+    });
+    fixture.detectChanges();
+
+    expect(saveButton?.disabled).toBe(false);
+  });
+
+  it('rejects BICs with invalid length or characters', () => {
+    const bic = fixture.componentInstance.participantForm.controls.bic;
+
+    bic.setValue('SHORT');
+    expect(bic.hasError('minlength')).toBe(true);
+
+    bic.setValue('TOO-LONG-BIC');
+    expect(bic.hasError('maxlength')).toBe(true);
+
+    bic.setValue('INVALID!');
+    expect(bic.hasError('pattern')).toBe(true);
+
+    bic.setValue('VALIDBIC');
+    expect(bic.valid).toBe(true);
+  });
+
+  it('shows field feedback only after a control is touched', () => {
+    const name = fixture.componentInstance.participantForm.controls.name;
+
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('#name + .invalid-feedback')).toBeNull();
+
+    name.markAsTouched();
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('#name + .invalid-feedback')).not.toBeNull();
+    expect((fixture.nativeElement as HTMLElement).querySelector('#name')?.classList.contains('is-invalid')).toBe(
+      true,
     );
   });
 });
