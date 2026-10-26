@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ParticipantService, ParticipantStatus } from './participant.service';
@@ -15,6 +15,7 @@ export class ParticipantFormComponent {
   private readonly participantService = inject(ParticipantService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute, { optional: true });
+  private readonly changeDetectorRef = inject(ChangeDetectorRef);
 
   readonly isEditMode = this.route?.snapshot.paramMap.has('id') ?? false;
   private readonly participantId = Number(this.route?.snapshot.paramMap.get('id'));
@@ -37,6 +38,8 @@ export class ParticipantFormComponent {
   });
 
   submitted = false;
+  errorMessage = '';
+  isSaving = false;
 
   isInvalid(controlName: keyof typeof this.participantForm.controls): boolean {
     const control = this.participantForm.controls[controlName];
@@ -48,21 +51,22 @@ export class ParticipantFormComponent {
       return;
     }
 
-    const participant = this.participantService.getParticipant(this.participantId);
-
-    if (!participant) {
-      window.alert('Participant not found.');
-      this.router.navigate(['/participants']);
-      return;
-    }
-
-    this.participantForm.patchValue({
-      name: participant.name,
-      bic: participant.bic,
-      shortName: participant.shortName,
-      email: participant.email,
-      phone: participant.phoneNumber,
-      status: participant.status,
+    this.participantService.getParticipant(this.participantId).subscribe({
+      next: (participant) => {
+        this.participantForm.patchValue({
+          name: participant.name,
+          bic: participant.bic,
+          shortName: participant.shortName,
+          email: participant.email,
+          phone: participant.phoneNumber,
+          status: participant.status,
+        });
+        this.changeDetectorRef.markForCheck();
+      },
+      error: () => {
+        window.alert('Participant not found.');
+        this.router.navigate(['/participants']);
+      },
     });
   }
 
@@ -84,13 +88,19 @@ export class ParticipantFormComponent {
       status,
     };
 
-    if (this.isEditMode) {
-      this.participantService.updateParticipant(this.participantId, participant);
-    } else {
-      this.participantService.addParticipant(participant);
-    }
+    this.isSaving = true;
+    const request = this.isEditMode
+      ? this.participantService.updateParticipant(this.participantId, participant)
+      : this.participantService.addParticipant(participant);
 
-    this.router.navigate(['/participants']);
+    request.subscribe({
+      next: () => this.router.navigate(['/participants']),
+      error: () => {
+        this.errorMessage = 'Unable to save the participant.';
+        this.isSaving = false;
+        this.changeDetectorRef.markForCheck();
+      },
+    });
   }
 
   cancel(): void {

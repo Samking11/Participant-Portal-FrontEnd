@@ -1,4 +1,6 @@
-import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
+import { Observable, map } from 'rxjs';
 
 export type ParticipantStatus = 'ACTIVE' | 'INACTIVE';
 
@@ -12,8 +14,22 @@ export interface Participant {
   status: ParticipantStatus;
 }
 
+type ParticipantPayload = Omit<Participant, 'id'>;
+
+interface ApiResponse<T> {
+  institutions?: T[];
+  institution?: T;
+  data?: {
+    institutions?: T[];
+    institution?: T;
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class ParticipantService {
+  private readonly http = inject(HttpClient);
+  private readonly apiUrl = 'http://localhost:9081/api/v1/participants';
+
   readonly participants: Participant[] = [
     {
       id: 1,
@@ -62,27 +78,74 @@ export class ParticipantService {
     },
   ];
 
-  addParticipant(participant: Omit<Participant, 'id'>): Participant {
+  loadParticipants(): Observable<Participant[]> {
+    return this.http.get<ApiResponse<Participant>>(this.apiUrl).pipe(
+      map((response) => response.institutions ?? response.data?.institutions ?? []),
+      map((participants) => {
+        this.participants.splice(0, this.participants.length, ...participants);
+        return this.participants;
+      }),
+    );
+  }
+
+  getParticipant(id: number): Observable<Participant> {
+    return this.http.get<Participant>(`${this.apiUrl}/${id}`);
+  }
+
+  addParticipant(participant: ParticipantPayload): Observable<Participant> {
     const newParticipant = {
       ...participant,
       id: Math.max(0, ...this.participants.map(({ id }) => id)) + 1,
     };
     this.participants.push(newParticipant);
-    return newParticipant;
+
+    return this.http
+      .post<ApiResponse<Participant>>(this.apiUrl, participant)
+      .pipe(
+        map((response) => this.getInstitution(response)),
+        map((createdParticipant) => {
+          Object.assign(newParticipant, createdParticipant);
+          return newParticipant;
+        }),
+      );
   }
 
-  getParticipant(id: number): Participant | undefined {
-    return this.participants.find((participant) => participant.id === id);
-  }
-
-  updateParticipant(id: number, participant: Omit<Participant, 'id'>): Participant | undefined {
-    const existingParticipant = this.getParticipant(id);
-
-    if (!existingParticipant) {
-      return undefined;
+  updateParticipant(id: number, participant: ParticipantPayload): Observable<Participant> {
+    const existingParticipant = this.participants.find(({ id: participantId }) => participantId === id);
+    if (existingParticipant) {
+      Object.assign(existingParticipant, participant);
     }
 
-    Object.assign(existingParticipant, participant);
-    return existingParticipant;
+    return this.http
+      .put<ApiResponse<Participant>>(`${this.apiUrl}/${id}`, participant)
+      .pipe(
+        map((response) => this.getInstitution(response)),
+        map((updatedParticipant) => {
+          if (existingParticipant) {
+            Object.assign(existingParticipant, updatedParticipant);
+            return existingParticipant;
+          }
+          return updatedParticipant;
+        }),
+      );
+  }
+
+  deleteParticipant(id: number): Observable<void> {
+    const participantIndex = this.participants.findIndex(({ id: participantId }) => participantId === id);
+    if (participantIndex >= 0) {
+      this.participants.splice(participantIndex, 1);
+    }
+
+    return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
+
+  private getInstitution(response: ApiResponse<Participant>): Participant {
+    const institution = response.institution ?? response.data?.institution;
+
+    if (!institution) {
+      throw new Error('The participant API returned no institution.');
+    }
+
+    return institution;
   }
 }

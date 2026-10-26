@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Router } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { routes } from './app.routes';
@@ -15,7 +17,7 @@ describe('LoginComponent', () => {
     navigate = vi.fn().mockResolvedValue(true);
     await TestBed.configureTestingModule({
       imports: [LoginComponent],
-      providers: [{ provide: Router, useValue: { navigate } }],
+      providers: [provideHttpClient(), { provide: Router, useValue: { navigate } }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(LoginComponent);
@@ -122,16 +124,26 @@ describe('LoginComponent', () => {
 
 describe('ParticipantsComponent', () => {
   let fixture: ComponentFixture<ParticipantsComponent>;
+  let httpTesting: HttpTestingController;
   let navigate: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     navigate = vi.fn();
     await TestBed.configureTestingModule({
       imports: [ParticipantsComponent],
-      providers: [{ provide: Router, useValue: { navigate } }],
+    providers: [
+      provideHttpClient(),
+      provideHttpClientTesting(),
+      { provide: Router, useValue: { navigate } },
+    ],
     }).compileComponents();
 
+    httpTesting = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ParticipantsComponent);
+    const participantService = TestBed.inject(ParticipantService);
+    httpTesting
+    .expectOne('http://localhost:9081/api/v1/participants')
+    .flush({ institutions: [...participantService.participants] });
     fixture.detectChanges();
   });
 
@@ -219,16 +231,22 @@ describe('ParticipantsComponent', () => {
 describe('ParticipantFormComponent', () => {
   let fixture: ComponentFixture<ParticipantFormComponent>;
   let participantService: ParticipantService;
+  let httpTesting: HttpTestingController;
   let navigate: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     navigate = vi.fn();
     await TestBed.configureTestingModule({
       imports: [ParticipantFormComponent],
-      providers: [{ provide: Router, useValue: { navigate } }],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: Router, useValue: { navigate } },
+      ],
     }).compileComponents();
 
     participantService = TestBed.inject(ParticipantService);
+    httpTesting = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ParticipantFormComponent);
     fixture.detectChanges();
   });
@@ -245,6 +263,9 @@ describe('ParticipantFormComponent', () => {
     const initialCount = participantService.participants.length;
 
     fixture.componentInstance.save();
+    httpTesting
+      .expectOne('http://localhost:9081/api/v1/participants')
+      .flush({ institution: participantService.participants.at(-1) });
 
     expect(participantService.participants).toHaveLength(initialCount + 1);
     expect(participantService.participants.at(-1)).toEqual({
