@@ -38,6 +38,7 @@
           <th scope="col">Email</th>
           <th scope="col">Phone number</th>
           <th scope="col">Status</th>
+          <th scope="col">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -58,10 +59,19 @@
                 {{ participant.status }}
               </span>
             </td>
+            <td>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-primary"
+                (click)="editParticipant(participant.id)"
+              >
+                Edit
+              </button>
+            </td>
           </tr>
         } @empty {
           <tr>
-            <td colspan="7" class="text-center text-secondary py-4">
+            <td colspan="8" class="text-center text-secondary py-4">
               No participant banks found
             </td>
           </tr>

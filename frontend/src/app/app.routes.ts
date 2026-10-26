@@ -9,6 +9,11 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./participants/participant-form').then((module) => module.ParticipantFormComponent),
   },
+  {
+    path: 'participants/edit/:id',
+    loadComponent: () =>
+      import('./participants/participant-form').then((module) => module.ParticipantFormComponent),
+  },
   { path: 'participants', component: ParticipantsComponent },
   { path: '', pathMatch: 'full', redirectTo: 'login' },
   { path: '**', redirectTo: 'login' },
