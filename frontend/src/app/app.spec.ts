@@ -9,6 +9,54 @@ import { ParticipantFormComponent } from './participants/participant-form';
 import { ParticipantsComponent } from './participants/participants';
 import { ParticipantService } from './participants/participant.service';
 
+const API_PARTICIPANTS = [
+  {
+    id: 1,
+    name: 'First National Bank',
+    bic: 'FNBKUS33',
+    shortName: 'FNB',
+    email: 'contact@fnb.example',
+    phoneNumber: '+1 212 555 0101',
+    status: 'ACTIVE' as const,
+  },
+  {
+    id: 2,
+    name: 'Atlantic Commercial Bank',
+    bic: 'ATCBUS44',
+    shortName: 'Atlantic Bank',
+    email: 'info@atlanticbank.example',
+    phoneNumber: '+1 305 555 0102',
+    status: 'ACTIVE' as const,
+  },
+  {
+    id: 3,
+    name: 'Summit Trust Bank',
+    bic: 'SMTBUS55',
+    shortName: 'Summit Trust',
+    email: 'support@summittrust.example',
+    phoneNumber: '+1 312 555 0103',
+    status: 'INACTIVE' as const,
+  },
+  {
+    id: 4,
+    name: 'Pacific Union Bank',
+    bic: 'PAUNUS66',
+    shortName: 'Pacific Union',
+    email: 'hello@pacificunion.example',
+    phoneNumber: '+1 415 555 0104',
+    status: 'ACTIVE' as const,
+  },
+  {
+    id: 5,
+    name: 'Central Cooperative Bank',
+    bic: 'CCBKUS77',
+    shortName: 'Central Co-op',
+    email: 'service@centralcoop.example',
+    phoneNumber: '+1 617 555 0105',
+    status: 'INACTIVE' as const,
+  },
+];
+
 describe('LoginComponent', () => {
   let fixture: ComponentFixture<LoginComponent>;
   let navigate: ReturnType<typeof vi.fn>;
@@ -140,10 +188,9 @@ describe('ParticipantsComponent', () => {
 
     httpTesting = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ParticipantsComponent);
-    const participantService = TestBed.inject(ParticipantService);
     httpTesting
     .expectOne('http://localhost:9081/api/v1/participants')
-    .flush({ institutions: [...participantService.participants] });
+    .flush({ institutions: API_PARTICIPANTS });
     fixture.detectChanges();
   });
 
@@ -157,7 +204,8 @@ describe('ParticipantsComponent', () => {
   });
 
   it('displays participants added to the shared service', () => {
-    TestBed.inject(ParticipantService).addParticipant({
+    TestBed.inject(ParticipantService).participants.push({
+      id: 6,
       name: 'New Bank',
       bic: 'NEWBUS88',
       shortName: 'New',
@@ -265,7 +313,17 @@ describe('ParticipantFormComponent', () => {
     fixture.componentInstance.save();
     httpTesting
       .expectOne('http://localhost:9081/api/v1/participants')
-      .flush({ institution: participantService.participants.at(-1) });
+      .flush({
+        institution: {
+          id: 6,
+          name: 'New Bank',
+          bic: 'NEWBUS88',
+          shortName: 'New',
+          email: 'contact@newbank.example',
+          phoneNumber: '+1 202 555 0108',
+          status: 'INACTIVE',
+        },
+      });
 
     expect(participantService.participants).toHaveLength(initialCount + 1);
     expect(participantService.participants.at(-1)).toEqual({
@@ -296,7 +354,7 @@ describe('ParticipantFormComponent', () => {
   it('does not save an invalid form', () => {
     fixture.componentInstance.save();
 
-    expect(participantService.participants).toHaveLength(5);
+    expect(participantService.participants).toHaveLength(0);
     expect(navigate).not.toHaveBeenCalled();
     expect(fixture.componentInstance.participantForm.controls.name.touched).toBe(true);
     fixture.detectChanges();
