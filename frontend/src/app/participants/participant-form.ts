@@ -2,10 +2,13 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject } from '@
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ParticipantService, ParticipantStatus } from './participant.service';
+import { AlertComponent } from '../shared/alert.component';
+import { FeedbackService } from '../shared/feedback.service';
+import { LoadingSpinnerComponent } from '../shared/loading-spinner.component';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule],
+  imports: [AlertComponent, LoadingSpinnerComponent, ReactiveFormsModule],
   selector: 'app-participant-form',
   styleUrl: './participant-form.css',
   templateUrl: './participant-form.html',
@@ -16,6 +19,7 @@ export class ParticipantFormComponent {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute, { optional: true });
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
+  private readonly feedback = inject(FeedbackService);
 
   readonly isEditMode = this.route?.snapshot.paramMap.has('id') ?? false;
   private readonly participantId = Number(this.route?.snapshot.paramMap.get('id'));
@@ -40,6 +44,7 @@ export class ParticipantFormComponent {
   submitted = false;
   errorMessage = '';
   isSaving = false;
+  isLoading = false;
 
   isInvalid(controlName: keyof typeof this.participantForm.controls): boolean {
     const control = this.participantForm.controls[controlName];
@@ -51,6 +56,7 @@ export class ParticipantFormComponent {
       return;
     }
 
+    this.isLoading = true;
     this.participantService.getParticipant(this.participantId).subscribe({
       next: (participant) => {
         this.participantForm.patchValue({
@@ -61,9 +67,11 @@ export class ParticipantFormComponent {
           phone: participant.phoneNumber,
           status: participant.status,
         });
+        this.isLoading = false;
         this.changeDetectorRef.markForCheck();
       },
       error: () => {
+        this.isLoading = false;
         window.alert('Participant not found.');
         this.router.navigate(['/participants']);
       },
@@ -78,6 +86,7 @@ export class ParticipantFormComponent {
     }
 
     this.submitted = false;
+    this.errorMessage = '';
     const { name, bic, shortName, email, phone, status } = this.participantForm.getRawValue();
     const participant = {
       name: name.trim(),
@@ -94,7 +103,14 @@ export class ParticipantFormComponent {
       : this.participantService.addParticipant(participant);
 
     request.subscribe({
-      next: () => this.router.navigate(['/participants']),
+      next: () => {
+        this.feedback.showSuccess(
+          this.isEditMode
+            ? 'Participant updated successfully.'
+            : 'Participant saved successfully.',
+        );
+        this.router.navigate(['/participants']);
+      },
       error: () => {
         this.errorMessage = 'Unable to save the participant.';
         this.isSaving = false;

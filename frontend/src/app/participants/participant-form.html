@@ -10,6 +10,9 @@
         {{ isEditMode ? 'Edit participant' : 'Register participant' }}
       </h1>
 
+      @if (isLoading) {
+        <app-loading-spinner message="Loading participant..." />
+      } @else {
       <form [formGroup]="participantForm" (ngSubmit)="save()" novalidate>
         @if (submitted && participantForm.invalid) {
           <div class="alert alert-danger" role="alert">
@@ -17,7 +20,7 @@
           </div>
         }
         @if (errorMessage) {
-          <div class="alert alert-danger" role="alert">{{ errorMessage }}</div>
+          <app-alert [message]="errorMessage" />
         }
 
         <div class="row g-3">
@@ -134,6 +137,7 @@
           </button>
         </div>
       </form>
+      }
     </div>
   </section>
 </main>
