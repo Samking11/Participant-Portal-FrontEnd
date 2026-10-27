@@ -1,11 +1,11 @@
-# Participant Bank Login Demo
+# Participant Bank Portal Frontend
 
-This Angular frontend demonstrates a Bootstrap login form with client-side
-credential validation and a participant bank list.
+This Angular frontend uses the Spring Boot participant-bank REST API running on
+`http://localhost:9081`.
 
-Participant banks can be registered at `/participants/new`. New entries are
-stored in a shared in-memory Angular service and remain available while the
-application is running; they are not persisted after a page reload.
+Participant banks are loaded from PostgreSQL through
+`GET /api/v1/participants`. Creating, editing, and deleting participants call
+the corresponding backend endpoints, so changes persist after a page reload.
 
 ## Run locally
 
@@ -14,9 +14,14 @@ npm install
 npm start
 ```
 
-Open `http://localhost:4200/`. The demo credentials are `admin` /
-`Admin@123`. This is a static frontend exercise and does not authenticate
-against the backend.
+Open `http://localhost:4200/`. The login screen remains a local demo login
+using `admin` / `Admin@123`; participant CRUD is connected to the backend API.
+
+Start the backend first:
+
+```bash
+docker compose up --build
+```
 
 ## Build
 
