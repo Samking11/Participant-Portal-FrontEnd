@@ -2,10 +2,14 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject } from '@
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Participant, ParticipantService } from './participant.service';
+import { AlertComponent } from '../shared/alert.component';
+import { ConfirmModalComponent } from '../shared/confirm-modal.component';
+import { FeedbackService } from '../shared/feedback.service';
+import { LoadingSpinnerComponent } from '../shared/loading-spinner.component';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule],
+  imports: [AlertComponent, ConfirmModalComponent, FormsModule, LoadingSpinnerComponent],
   selector: 'app-participants',
   styleUrl: './participants.css',
   templateUrl: './participants.html',
@@ -14,12 +18,14 @@ export class ParticipantsComponent {
   private readonly router = inject(Router);
   private readonly participantService = inject(ParticipantService);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
+  private readonly feedback = inject(FeedbackService);
 
   participants: Participant[] = this.participantService.participants;
   errorMessage = '';
   isLoading = true;
 
   searchTerm = '';
+  pendingDelete: Participant | null = null;
 
   constructor() {
     this.loadParticipants();
@@ -51,21 +57,37 @@ export class ParticipantsComponent {
   }
 
   deleteParticipant(id: number): void {
-    if (!window.confirm('Delete this participant?')) {
+    this.pendingDelete = this.participants.find((participant) => participant.id === id) ?? null;
+  }
+
+  confirmDelete(): void {
+    if (!this.pendingDelete) {
       return;
     }
 
-    this.participantService.deleteParticipant(id).subscribe({
-      next: () => this.loadParticipants(),
+    const participant = this.pendingDelete;
+    this.pendingDelete = null;
+    this.isLoading = true;
+    this.participantService.deleteParticipant(participant.id).subscribe({
+      next: () => {
+        this.feedback.showSuccess(`${participant.name} was deleted successfully.`);
+        this.loadParticipants();
+      },
       error: () => {
-        this.errorMessage = 'Unable to delete the participant.';
+        this.isLoading = false;
+        this.feedback.showError('Unable to delete the participant.');
         this.changeDetectorRef.markForCheck();
       },
     });
   }
 
+  cancelDelete(): void {
+    this.pendingDelete = null;
+  }
+
   private loadParticipants(): void {
-    this.isLoading = this.participants.length === 0;
+    this.isLoading = true;
+    this.errorMessage = '';
     this.participantService.loadParticipants().subscribe({
       next: (participants) => {
         this.participants = participants;
