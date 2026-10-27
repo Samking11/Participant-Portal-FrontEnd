@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { finalize } from 'rxjs';
 import { ParticipantService, ParticipantStatus } from './participant.service';
 import { AlertComponent } from '../shared/alert.component';
 import { FeedbackService } from '../shared/feedback.service';
@@ -57,25 +58,30 @@ export class ParticipantFormComponent {
     }
 
     this.isLoading = true;
-    this.participantService.getParticipant(this.participantId).subscribe({
-      next: (participant) => {
-        this.participantForm.patchValue({
-          name: participant.name,
-          bic: participant.bic,
-          shortName: participant.shortName,
-          email: participant.email,
-          phone: participant.phoneNumber,
-          status: participant.status,
-        });
-        this.isLoading = false;
-        this.changeDetectorRef.markForCheck();
-      },
-      error: () => {
-        this.isLoading = false;
-        window.alert('Participant not found.');
-        this.router.navigate(['/participants']);
-      },
-    });
+    this.participantService
+      .getParticipant(this.participantId)
+      .pipe(
+        finalize(() => {
+          this.isLoading = false;
+          this.changeDetectorRef.markForCheck();
+        }),
+      )
+      .subscribe({
+        next: (participant) => {
+          this.participantForm.patchValue({
+            name: participant.name,
+            bic: participant.bic,
+            shortName: participant.shortName,
+            email: participant.email,
+            phone: participant.phoneNumber,
+            status: participant.status,
+          });
+        },
+        error: () => {
+          this.feedback.showError('Participant not found.');
+          this.router.navigate(['/participants']);
+        },
+      });
   }
 
   save(): void {
@@ -102,21 +108,27 @@ export class ParticipantFormComponent {
       ? this.participantService.updateParticipant(this.participantId, participant)
       : this.participantService.addParticipant(participant);
 
-    request.subscribe({
-      next: () => {
-        this.feedback.showSuccess(
-          this.isEditMode
-            ? 'Participant updated successfully.'
-            : 'Participant saved successfully.',
-        );
-        this.router.navigate(['/participants']);
-      },
-      error: () => {
-        this.errorMessage = 'Unable to save the participant.';
-        this.isSaving = false;
-        this.changeDetectorRef.markForCheck();
-      },
-    });
+    request
+      .pipe(
+        finalize(() => {
+          this.isSaving = false;
+          this.changeDetectorRef.markForCheck();
+        }),
+      )
+      .subscribe({
+        next: () => {
+          this.feedback.showSuccess(
+            this.isEditMode
+              ? 'Participant updated successfully.'
+              : 'Participant saved successfully.',
+          );
+          this.router.navigate(['/participants']);
+        },
+        error: () => {
+          this.errorMessage = 'Unable to save the participant.';
+          this.changeDetectorRef.markForCheck();
+        },
+      });
   }
 
   cancel(): void {
