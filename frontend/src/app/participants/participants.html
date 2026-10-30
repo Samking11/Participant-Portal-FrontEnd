@@ -38,6 +38,7 @@
       <thead class="table-light">
         <tr>
           <th scope="col">ID</th>
+          <th scope="col">Logo</th>
           <th scope="col">Name</th>
           <th scope="col">BIC</th>
           <th scope="col">Short name</th>
@@ -51,6 +52,24 @@
         @for (participant of filteredParticipants; track participant.id) {
           <tr>
             <td>{{ participant.id }}</td>
+            <td>
+              @if (participant.logoPath) {
+                <img
+                  [src]="getLogoUrl(participant.logoPath)"
+                  [alt]="participant.name + ' logo'"
+                  class="rounded border bg-light p-1"
+                  style="width: 42px; height: 42px; object-fit: contain;"
+                />
+              } @else {
+                <div
+                  class="rounded bg-light border text-secondary d-flex align-items-center justify-content-center small fw-semibold"
+                  style="width: 42px; height: 42px;"
+                  title="No logo"
+                >
+                  {{ participant.shortName ? participant.shortName.substring(0, 3).toUpperCase() : 'N/A' }}
+                </div>
+              }
+            </td>
             <td class="fw-semibold">{{ participant.name }}</td>
             <td>{{ participant.bic }}</td>
             <td>{{ participant.shortName }}</td>
@@ -86,7 +105,7 @@
           </tr>
         } @empty {
           <tr>
-            <td colspan="8" class="text-center text-secondary py-4">
+            <td colspan="9" class="text-center text-secondary py-4">
               No participant banks found
             </td>
           </tr>

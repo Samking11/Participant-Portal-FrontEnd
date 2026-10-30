@@ -44,6 +44,10 @@ export class ParticipantsComponent {
     );
   }
 
+  getLogoUrl(path: string | null | undefined): string | null {
+    return this.participantService.getLogoUrl(path);
+  }
+
   logout(): void {
     this.router.navigate(['/login']);
   }
