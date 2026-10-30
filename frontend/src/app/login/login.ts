@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { AuthService } from '../auth/auth.service';
 
 type LoginFeedback = { type: 'success'; message: string } | { type: 'error'; message: string };
 
@@ -17,6 +18,7 @@ const DEMO_PASSWORD = 'Admin@123';
 export class LoginComponent {
   private readonly formBuilder = inject(FormBuilder).nonNullable;
   private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
 
   readonly loginForm = this.formBuilder.group({
     username: ['', [Validators.required, Validators.pattern(/\S/)]],
@@ -38,6 +40,7 @@ export class LoginComponent {
     const { username, password } = this.loginForm.getRawValue();
 
     if (username.trim() === DEMO_USERNAME && password === DEMO_PASSWORD) {
+      this.authService.login(username.trim());
       this.feedback.set({ type: 'success', message: 'Login successful.' });
       this.router.navigate(['/participants']);
       return;

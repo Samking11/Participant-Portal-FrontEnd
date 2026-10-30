@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { finalize, map, of, switchMap } from 'rxjs';
+import { catchError, finalize, map, of, switchMap } from 'rxjs';
 import { ParticipantService, ParticipantStatus } from './participant.service';
 import { AlertComponent } from '../shared/alert.component';
 import { FeedbackService } from '../shared/feedback.service';
@@ -165,7 +165,16 @@ export class ParticipantFormComponent {
           if (this.selectedFile) {
             return this.participantService
               .uploadLogo(savedParticipant.id, this.selectedFile)
-              .pipe(map(() => savedParticipant));
+              .pipe(
+                map(() => savedParticipant),
+                catchError((err) => {
+                  this.feedback.showError(
+                    'Participant saved, but failed to upload logo: ' +
+                      (err?.error?.message || err?.message || 'Upload error'),
+                  );
+                  return of(savedParticipant);
+                }),
+              );
           }
           return of(savedParticipant);
         }),

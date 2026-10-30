@@ -4,6 +4,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Router } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { routes } from './app.routes';
+import { authGuard } from './auth/auth.guard';
+import { AuthService } from './auth/auth.service';
 import { LoginComponent } from './login/login';
 import { ParticipantFormComponent } from './participants/participant-form';
 import { ParticipantsComponent } from './participants/participants';
@@ -63,6 +65,7 @@ const API_PARTICIPANTS = [
 describe('LoginComponent', () => {
   let fixture: ComponentFixture<LoginComponent>;
   let navigate: ReturnType<typeof vi.fn>;
+  let authService: AuthService;
 
   beforeEach(async () => {
     navigate = vi.fn().mockResolvedValue(true);
@@ -71,6 +74,8 @@ describe('LoginComponent', () => {
       providers: [provideHttpClient(), { provide: Router, useValue: { navigate } }],
     }).compileComponents();
 
+    authService = TestBed.inject(AuthService);
+    authService.logout();
     fixture = TestBed.createComponent(LoginComponent);
     fixture.detectChanges();
   });
@@ -80,25 +85,29 @@ describe('LoginComponent', () => {
 
     expect(alertMessage()).toContain('Enter both your username and password.');
     expect(feedbackAlert().classList.contains('alert-danger')).toBe(true);
+    expect(authService.isLoggedIn()).toBe(false);
   });
 
   it('rejects a username containing only whitespace', async () => {
     await submitLogin('   ', 'Admin@123');
 
     expect(alertMessage()).toContain('Enter both your username and password.');
+    expect(authService.isLoggedIn()).toBe(false);
   });
 
   it('shows an error for incorrect credentials', async () => {
     await submitLogin('admin', 'incorrect');
 
     expect(alertMessage()).toContain('The username or password is incorrect.');
+    expect(authService.isLoggedIn()).toBe(false);
   });
 
-  it('navigates to participants for the demo credentials', async () => {
+  it('navigates to participants and starts session for the demo credentials', async () => {
     await submitLogin('admin', 'Admin@123');
 
     expect(alertMessage()).toContain('Login successful.');
     expect(feedbackAlert().classList.contains('alert-success')).toBe(true);
+    expect(authService.isLoggedIn()).toBe(true);
     expect(navigate).toHaveBeenCalledWith(['/participants']);
   });
 
@@ -156,25 +165,84 @@ describe('App routing', () => {
     expect(defaultRoute?.pathMatch).toBe('full');
   });
 
-  it('declares the participants route', () => {
+  it('declares the participants route protected by authGuard', () => {
     const participantsRoute = routes.find((route) => route.path === 'participants');
 
     expect(participantsRoute).toBeDefined();
     expect(participantsRoute?.component).toBe(ParticipantsComponent);
+    expect(participantsRoute?.canActivate).toContain(authGuard);
   });
 
-  it('declares the add participant route', () => {
+  it('declares the add participant route protected by authGuard', () => {
     const addRoute = routes.find((route) => route.path === 'participants/new');
 
     expect(addRoute).toBeDefined();
     expect(addRoute?.loadComponent).toBeDefined();
+    expect(addRoute?.canActivate).toContain(authGuard);
   });
 
-  it('declares the edit participant route', () => {
+  it('declares the edit participant route protected by authGuard', () => {
     const editRoute = routes.find((route) => route.path === 'participants/edit/:id');
 
     expect(editRoute).toBeDefined();
     expect(editRoute?.loadComponent).toBeDefined();
+    expect(editRoute?.canActivate).toContain(authGuard);
+  });
+});
+
+describe('AuthService', () => {
+  let authService: AuthService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    authService = TestBed.inject(AuthService);
+    authService.logout();
+  });
+
+  it('starts unauthenticated when session is clear', () => {
+    expect(authService.isLoggedIn()).toBe(false);
+  });
+
+  it('records user login and reports authenticated', () => {
+    authService.login('admin');
+    expect(authService.isLoggedIn()).toBe(true);
+    expect(authService.getCurrentUser()?.username).toBe('admin');
+  });
+
+  it('clears session on logout', () => {
+    authService.login('admin');
+    authService.logout();
+    expect(authService.isLoggedIn()).toBe(false);
+    expect(authService.getCurrentUser()).toBeNull();
+  });
+});
+
+describe('authGuard', () => {
+  let authService: AuthService;
+  let navigate: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    navigate = vi.fn();
+    TestBed.configureTestingModule({
+      providers: [{ provide: Router, useValue: { navigate } }],
+    });
+    authService = TestBed.inject(AuthService);
+    authService.logout();
+  });
+
+  it('blocks navigation and redirects to /login when unauthenticated', () => {
+    const canActivate = TestBed.runInInjectionContext(() => authGuard({} as any, {} as any));
+
+    expect(canActivate).toBe(false);
+    expect(navigate).toHaveBeenCalledWith(['/login']);
+  });
+
+  it('allows access when user is authenticated', () => {
+    authService.login('admin');
+    const canActivate = TestBed.runInInjectionContext(() => authGuard({} as any, {} as any));
+
+    expect(canActivate).toBe(true);
+    expect(navigate).not.toHaveBeenCalled();
   });
 });
 
@@ -182,6 +250,7 @@ describe('ParticipantsComponent', () => {
   let fixture: ComponentFixture<ParticipantsComponent>;
   let httpTesting: HttpTestingController;
   let navigate: ReturnType<typeof vi.fn>;
+  let authService: AuthService;
 
   beforeEach(async () => {
     navigate = vi.fn();
@@ -194,6 +263,8 @@ describe('ParticipantsComponent', () => {
       ],
     }).compileComponents();
 
+    authService = TestBed.inject(AuthService);
+    authService.login('admin');
     httpTesting = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ParticipantsComponent);
     httpTesting
@@ -288,6 +359,13 @@ describe('ParticipantsComponent', () => {
     addButton.click();
 
     expect(navigate).toHaveBeenCalledWith(['/participants/new']);
+  });
+
+  it('clears session and returns to login on logout', () => {
+    fixture.componentInstance.logout();
+
+    expect(authService.isLoggedIn()).toBe(false);
+    expect(navigate).toHaveBeenCalledWith(['/login']);
   });
 });
 
