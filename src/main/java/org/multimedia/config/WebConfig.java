@@ -1,11 +1,18 @@
 package org.multimedia.config;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
+
+    @Value("${client.participant.logoPath:C:/etswitch/uploads/logos/}")
+    private String logoUploadLocation;
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
@@ -17,8 +24,22 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowCredentials(true);
     }
 
-    @org.springframework.context.annotation.Bean
-    public org.springframework.web.client.RestTemplate restTemplate() {
-        return new org.springframework.web.client.RestTemplate();
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        String location = logoUploadLocation.replace("\\", "/");
+        if (!location.endsWith("/")) {
+            location += "/";
+        }
+        if (!location.startsWith("file:")) {
+            location = "file:" + location;
+        }
+
+        registry.addResourceHandler("/uploads/logos/**")
+                .addResourceLocations(location);
+    }
+
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
     }
 }
