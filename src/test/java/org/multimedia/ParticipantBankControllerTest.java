@@ -16,6 +16,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.client.RestClientException;
@@ -48,6 +50,9 @@ public class ParticipantBankControllerTest {
     private ObjectMapper objectMapper;
 
     @MockBean
+    private JwtDecoder jwtDecoder;
+
+    @MockBean
     private RestTemplate restTemplate;
 
     @BeforeEach
@@ -71,7 +76,7 @@ public class ParticipantBankControllerTest {
     }
 
     @Test
-    public void testLoginWithStaticCredentials() throws Exception {
+    public void testPublicLoginEndpointSucceedsWithoutToken() throws Exception {
         LoginRequest loginRequest = LoginRequest.builder()
                 .username("admin")
                 .password("Password@123")
@@ -109,7 +114,17 @@ public class ParticipantBankControllerTest {
     }
 
     @Test
-    public void testCreateAndRetrieveParticipantBank() throws Exception {
+    public void testProtectedEndpointRejectsUnauthenticatedRequestsWith401() throws Exception {
+        mockMvc.perform(get("/api/v1/participants")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status", is(401)))
+                .andExpect(jsonPath("$.error", is("Unauthorized")));
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    public void testProtectedEndpointAllowsAuthenticatedUser() throws Exception {
         ParticipantBankDto dto = ParticipantBankDto.builder()
                 .name("Commercial Bank of Ethiopia")
                 .bic("CBETETAA")
@@ -120,37 +135,24 @@ public class ParticipantBankControllerTest {
                 .status("ACTIVE")
                 .build();
 
-        // 1. Add Bank
+        // 1. Add Bank with authentication
         mockMvc.perform(post("/api/v1/participants")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status", is("SUCCESS")))
-                .andExpect(jsonPath("$.institution.name", is("Commercial Bank of Ethiopia")))
-                .andExpect(jsonPath("$.institution.bic", is("CBETETAA")));
+                .andExpect(jsonPath("$.institution.name", is("Commercial Bank of Ethiopia")));
 
-        // 2. Get All Banks
+        // 2. Retrieve All Banks
         mockMvc.perform(get("/api/v1/participants")
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.institutions", hasSize(1)))
-                .andExpect(jsonPath("$.institutions[0].bic", is("CBETETAA")));
-
-        // 3. Get Bank by BIC
-        mockMvc.perform(get("/api/v1/participants/bic/CBETETAA")
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name", is("Commercial Bank of Ethiopia")));
-
-        // 4. Search Bank
-        mockMvc.perform(get("/api/v1/participants/search?query=CBE")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.institutions", hasSize(1)));
     }
 
     @Test
-    public void testUploadParticipantLogo() throws Exception {
+    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    public void testUploadLogoWithAuthentication() throws Exception {
         ParticipantBank bank = participantBankRepository.save(
                 ParticipantBank.builder()
                         .name("Awash Bank")

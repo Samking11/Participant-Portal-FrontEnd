@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject } from '@
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Participant, ParticipantService } from './participant.service';
+import { AuthService } from '../auth/auth.service';
 import { AlertComponent } from '../shared/alert.component';
 import { ConfirmModalComponent } from '../shared/confirm-modal.component';
 import { FeedbackService } from '../shared/feedback.service';
@@ -17,6 +18,7 @@ import { LoadingSpinnerComponent } from '../shared/loading-spinner.component';
 export class ParticipantsComponent {
   private readonly router = inject(Router);
   private readonly participantService = inject(ParticipantService);
+  private readonly authService = inject(AuthService);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
   private readonly feedback = inject(FeedbackService);
 
@@ -49,6 +51,7 @@ export class ParticipantsComponent {
   }
 
   logout(): void {
+    this.authService.logout();
     this.router.navigate(['/login']);
   }
 
