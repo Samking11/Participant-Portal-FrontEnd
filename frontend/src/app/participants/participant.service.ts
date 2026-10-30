@@ -12,6 +12,7 @@ export interface Participant {
   email: string;
   phoneNumber: string;
   status: ParticipantStatus;
+  logoPath?: string | null;
 }
 
 type ParticipantPayload = Omit<Participant, 'id'>;
@@ -23,6 +24,8 @@ interface ApiResponse<T> {
     institutions?: T[];
     institution?: T;
   };
+  success?: string;
+  message?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -86,6 +89,25 @@ export class ParticipantService {
         }
       }),
     );
+  }
+
+  uploadLogo(id: number, file: File): Observable<ApiResponse<Participant>> {
+    const formData = new FormData();
+    formData.append('logo', file);
+    return this.http.post<ApiResponse<Participant>>(`${this.apiUrl}/${id}/logo`, formData);
+  }
+
+  getLogoUrl(logoPath: string | null | undefined): string | null {
+    if (!logoPath) {
+      return null;
+    }
+    if (logoPath.startsWith('http://') || logoPath.startsWith('https://')) {
+      return logoPath;
+    }
+    if (logoPath.startsWith('/')) {
+      return `http://localhost:9081${logoPath}`;
+    }
+    return `http://localhost:9081/uploads/logos/${logoPath}`;
   }
 
   private getInstitution(response: ApiResponse<Participant>): Participant {

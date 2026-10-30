@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { finalize } from 'rxjs';
+import { finalize, map, of, switchMap } from 'rxjs';
 import { ParticipantService, ParticipantStatus } from './participant.service';
 import { AlertComponent } from '../shared/alert.component';
 import { FeedbackService } from '../shared/feedback.service';
@@ -47,6 +47,10 @@ export class ParticipantFormComponent {
   isSaving = false;
   isLoading = false;
 
+  selectedFile: File | null = null;
+  logoPreview: string | null = null;
+  currentLogoPath: string | null = null;
+
   isInvalid(controlName: keyof typeof this.participantForm.controls): boolean {
     const control = this.participantForm.controls[controlName];
     return control.invalid && control.touched;
@@ -76,12 +80,59 @@ export class ParticipantFormComponent {
             phone: participant.phoneNumber,
             status: participant.status,
           });
+          if (participant.logoPath) {
+            this.currentLogoPath = participant.logoPath;
+          }
         },
         error: () => {
           this.feedback.showError('Participant not found.');
           this.router.navigate(['/participants']);
         },
       });
+  }
+
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    if (!file) {
+      this.selectedFile = null;
+      this.logoPreview = null;
+      this.changeDetectorRef.markForCheck();
+      return;
+    }
+
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/svg+xml'];
+    if (!validTypes.includes(file.type) && !file.name.match(/\.(png|jpe?g|webp|svg)$/i)) {
+      this.feedback.showError('Please select a valid image file (PNG, JPG).');
+      input.value = '';
+      this.selectedFile = null;
+      this.logoPreview = null;
+      this.changeDetectorRef.markForCheck();
+      return;
+    }
+
+    this.selectedFile = file;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.logoPreview = reader.result as string;
+      this.changeDetectorRef.markForCheck();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  removeSelectedLogo(fileInput?: HTMLInputElement): void {
+    this.selectedFile = null;
+    this.logoPreview = null;
+    if (fileInput) {
+      fileInput.value = '';
+    }
+    this.changeDetectorRef.markForCheck();
+  }
+
+  getLogoUrl(path: string | null | undefined): string | null {
+    return this.participantService.getLogoUrl(path);
   }
 
   save(): void {
@@ -104,12 +155,20 @@ export class ParticipantFormComponent {
     };
 
     this.isSaving = true;
-    const request = this.isEditMode
+    const request$ = this.isEditMode
       ? this.participantService.updateParticipant(this.participantId, participant)
       : this.participantService.addParticipant(participant);
 
-    request
+    request$
       .pipe(
+        switchMap((savedParticipant) => {
+          if (this.selectedFile) {
+            return this.participantService
+              .uploadLogo(savedParticipant.id, this.selectedFile)
+              .pipe(map(() => savedParticipant));
+          }
+          return of(savedParticipant);
+        }),
         finalize(() => {
           this.isSaving = false;
           this.changeDetectorRef.markForCheck();

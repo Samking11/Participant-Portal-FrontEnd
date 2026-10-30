@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Router } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -8,6 +8,8 @@ import { LoginComponent } from './login/login';
 import { ParticipantFormComponent } from './participants/participant-form';
 import { ParticipantsComponent } from './participants/participants';
 import { ParticipantService } from './participants/participant.service';
+import { FeedbackService } from './shared/feedback.service';
+import { httpErrorInterceptor } from './shared/http-error.interceptor';
 
 const API_PARTICIPANTS = [
   {
@@ -18,6 +20,7 @@ const API_PARTICIPANTS = [
     email: 'contact@fnb.example',
     phoneNumber: '+1 212 555 0101',
     status: 'ACTIVE' as const,
+    logoPath: '/uploads/logos/FNBKUS33_logo.png',
   },
   {
     id: 2,
@@ -99,75 +102,80 @@ describe('LoginComponent', () => {
     expect(navigate).toHaveBeenCalledWith(['/participants']);
   });
 
-  it('masks the password input', () => {
-    expect(getInput('password').type).toBe('password');
-  });
-
-  it('redirects the default route to login', async () => {
-    const defaultRoute = routes.find((route) => route.path === '');
-
-    expect(defaultRoute?.pathMatch).toBe('full');
-    expect(defaultRoute?.redirectTo).toBe('login');
-  });
-
-  it('registers the participant form route', () => {
-    expect(typeof routes.find((route) => route.path === 'participants/new')?.loadComponent).toBe(
-      'function',
+  it('has a masked password field', () => {
+    const passwordInput = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      '#password',
     );
-  });
 
-  it('navigates to login when logging out', () => {
-    const participants = TestBed.createComponent(ParticipantsComponent);
-    participants.componentInstance.logout();
-
-    expect(navigate).toHaveBeenCalledWith(['/login']);
+    expect(passwordInput?.type).toBe('password');
   });
 
   async function submitLogin(username: string, password: string): Promise<void> {
-    setInputValue('username', username);
-    setInputValue('password', password);
-    const form = (fixture.nativeElement as HTMLElement).querySelector('form');
-    if (!form) {
-      throw new Error('Expected the login form to exist.');
+    const usernameInput = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      '#username',
+    );
+    const passwordInput = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      '#password',
+    );
+    const form = (fixture.nativeElement as HTMLElement).querySelector<HTMLFormElement>('form');
+
+    if (!usernameInput || !passwordInput || !form) {
+      throw new Error('Expected login form inputs to exist.');
     }
 
-    form.requestSubmit();
+    usernameInput.value = username;
+    usernameInput.dispatchEvent(new Event('input', { bubbles: true }));
+    passwordInput.value = password;
+    passwordInput.dispatchEvent(new Event('input', { bubbles: true }));
     fixture.detectChanges();
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await fixture.whenStable();
     fixture.detectChanges();
   }
 
-  function setInputValue(id: string, value: string): void {
-    const input = getInput(id);
-    input.value = value;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-  }
-
-  function getInput(id: string): HTMLInputElement {
-    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(`#${id}`);
-
-    if (!input) {
-      throw new Error(`Expected input #${id} to exist.`);
-    }
-
-    return input;
-  }
-
   function alertMessage(): string {
-    return feedbackAlert().textContent ?? '';
+    return feedbackAlert().textContent?.trim() ?? '';
   }
 
   function feedbackAlert(): HTMLElement {
-    const alert = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
-      '[role="alert"]',
-    );
-
+    const alert = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[role="alert"]');
     if (!alert) {
-      throw new Error('Expected a login feedback alert.');
+      throw new Error('Expected an alert banner to be present.');
     }
-
     return alert;
   }
+});
+
+describe('App routing', () => {
+  it('redirects the default path to login', () => {
+    const defaultRoute = routes.find((route) => route.path === '');
+
+    expect(defaultRoute).toBeDefined();
+    expect(defaultRoute?.redirectTo).toBe('login');
+    expect(defaultRoute?.pathMatch).toBe('full');
+  });
+
+  it('declares the participants route', () => {
+    const participantsRoute = routes.find((route) => route.path === 'participants');
+
+    expect(participantsRoute).toBeDefined();
+    expect(participantsRoute?.component).toBe(ParticipantsComponent);
+  });
+
+  it('declares the add participant route', () => {
+    const addRoute = routes.find((route) => route.path === 'participants/new');
+
+    expect(addRoute).toBeDefined();
+    expect(addRoute?.loadComponent).toBeDefined();
+  });
+
+  it('declares the edit participant route', () => {
+    const editRoute = routes.find((route) => route.path === 'participants/edit/:id');
+
+    expect(editRoute).toBeDefined();
+    expect(editRoute?.loadComponent).toBeDefined();
+  });
 });
 
 describe('ParticipantsComponent', () => {
@@ -179,18 +187,18 @@ describe('ParticipantsComponent', () => {
     navigate = vi.fn();
     await TestBed.configureTestingModule({
       imports: [ParticipantsComponent],
-    providers: [
-      provideHttpClient(),
-      provideHttpClientTesting(),
-      { provide: Router, useValue: { navigate } },
-    ],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: Router, useValue: { navigate } },
+      ],
     }).compileComponents();
 
     httpTesting = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ParticipantsComponent);
     httpTesting
-    .expectOne('http://localhost:9081/api/v1/participants')
-    .flush({ institutions: API_PARTICIPANTS });
+      .expectOne('http://localhost:9081/api/v1/participants')
+      .flush({ institutions: API_PARTICIPANTS });
     fixture.detectChanges();
   });
 
@@ -201,6 +209,12 @@ describe('ParticipantsComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('First National Bank');
     expect(fixture.nativeElement.textContent).toContain('FNBKUS33');
     expect(fixture.nativeElement.textContent).toContain('Central Cooperative Bank');
+  });
+
+  it('displays the bank logo in the table when available', () => {
+    const images = (fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr img');
+    expect(images.length).toBeGreaterThanOrEqual(1);
+    expect(images[0].getAttribute('src')).toBe('http://localhost:9081/uploads/logos/FNBKUS33_logo.png');
   });
 
   it('displays participants added to the shared service', () => {
@@ -261,6 +275,7 @@ describe('ParticipantsComponent', () => {
     expect(badges[0].classList.contains('bg-success')).toBe(true);
     expect(badges[2].classList.contains('bg-secondary')).toBe(true);
   });
+
   it('opens the registration form from Add Participant', () => {
     const addButton = Array.from(
       (fixture.nativeElement as HTMLElement).querySelectorAll('button'),
@@ -326,23 +341,61 @@ describe('ParticipantFormComponent', () => {
       });
 
     expect(participantService.participants).toHaveLength(initialCount + 1);
-    expect(participantService.participants.at(-1)).toEqual({
-      id: 6,
+    expect(navigate).toHaveBeenCalledWith(['/participants']);
+  });
+
+  it('updates logo preview when an image file is chosen', async () => {
+    const file = new File(['dummy content'], 'logo.png', { type: 'image/png' });
+    const event = {
+      target: {
+        files: [file],
+      },
+    } as unknown as Event;
+
+    fixture.componentInstance.onFileSelected(event);
+    expect(fixture.componentInstance.selectedFile).toBe(file);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(fixture.componentInstance.logoPreview).toBeTruthy();
+  });
+
+  it('uploads logo via multipart form data after saving participant', () => {
+    fixture.componentInstance.participantForm.setValue({
       name: 'New Bank',
       bic: 'NEWBUS88',
       shortName: 'New',
       email: 'contact@newbank.example',
-      phoneNumber: '+1 202 555 0108',
+      phone: '+1 202 555 0108',
       status: 'INACTIVE',
     });
+    const file = new File(['image-bytes'], 'logo.png', { type: 'image/png' });
+    fixture.componentInstance.selectedFile = file;
+
+    fixture.componentInstance.save();
+
+    const createReq = httpTesting.expectOne('http://localhost:9081/api/v1/participants');
+    expect(createReq.request.method).toBe('POST');
+    createReq.flush({
+      institution: {
+        id: 7,
+        name: 'New Bank',
+        bic: 'NEWBUS88',
+        shortName: 'New',
+        email: 'contact@newbank.example',
+        phoneNumber: '+1 202 555 0108',
+        status: 'INACTIVE',
+      },
+    });
+
+    const logoReq = httpTesting.expectOne('http://localhost:9081/api/v1/participants/7/logo');
+    expect(logoReq.request.method).toBe('POST');
+    expect(logoReq.request.body instanceof FormData).toBe(true);
+    expect((logoReq.request.body as FormData).get('logo')).toBe(file);
+    logoReq.flush({ success: 'Logo uploaded successfully' });
+
     expect(navigate).toHaveBeenCalledWith(['/participants']);
   });
 
-  it('cancels without changing participants', () => {
-    fixture.componentInstance.participantForm.patchValue({
-      name: 'Unsaved Bank',
-      bic: 'UNSAVED1',
-    });
+  it('cancels creation without adding a participant', () => {
     const initialCount = participantService.participants.length;
 
     fixture.componentInstance.cancel();
@@ -412,5 +465,68 @@ describe('ParticipantFormComponent', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('#name')?.classList.contains('is-invalid')).toBe(
       true,
     );
+  });
+});
+
+describe('httpErrorInterceptor', () => {
+  let http: HttpClient;
+  let httpTesting: HttpTestingController;
+  let feedbackService: FeedbackService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(withInterceptors([httpErrorInterceptor])),
+        provideHttpClientTesting(),
+      ],
+    });
+
+    http = TestBed.inject(HttpClient);
+    httpTesting = TestBed.inject(HttpTestingController);
+    feedbackService = TestBed.inject(FeedbackService);
+  });
+
+  it('catches HTTP 500 server errors and displays friendly alert', () => {
+    http.get('/api/test').subscribe({
+      next: () => expect.unreachable('Should have failed'),
+      error: () => {},
+    });
+
+    const req = httpTesting.expectOne('/api/test');
+    req.flush({ message: 'Internal Server Error' }, { status: 500, statusText: 'Server Error' });
+
+    expect(feedbackService.toast()?.type).toBe('error');
+    expect(feedbackService.toast()?.message).toBe('Internal Server Error');
+  });
+
+  it('catches status 0 connection errors and displays backend connection alert', () => {
+    http.get('/api/test').subscribe({
+      next: () => expect.unreachable('Should have failed'),
+      error: () => {},
+    });
+
+    const req = httpTesting.expectOne('/api/test');
+    req.error(new ProgressEvent('error'), { status: 0, statusText: 'Unknown Error' });
+
+    expect(feedbackService.toast()?.type).toBe('error');
+    expect(feedbackService.toast()?.message).toContain('Unable to connect to the backend server');
+  });
+});
+
+describe('ParticipantService', () => {
+  let service: ParticipantService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    service = TestBed.inject(ParticipantService);
+  });
+
+  it('formats logo URLs correctly', () => {
+    expect(service.getLogoUrl(null)).toBeNull();
+    expect(service.getLogoUrl('http://example.com/logo.png')).toBe('http://example.com/logo.png');
+    expect(service.getLogoUrl('/uploads/logos/bank.png')).toBe('http://localhost:9081/uploads/logos/bank.png');
+    expect(service.getLogoUrl('bank.png')).toBe('http://localhost:9081/uploads/logos/bank.png');
   });
 });

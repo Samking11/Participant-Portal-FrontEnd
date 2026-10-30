@@ -127,6 +127,56 @@
                 <div class="invalid-feedback">Status is required.</div>
               }
             </div>
+
+            <!-- Logo Upload Field with Preview -->
+            <div class="col-12">
+              <label for="logo" class="form-label">Bank Logo (PNG, JPG)</label>
+              <div class="input-group">
+                <input
+                  #fileInput
+                  id="logo"
+                  type="file"
+                  class="form-control"
+                  accept="image/png, image/jpeg, image/jpg"
+                  (change)="onFileSelected($event)"
+                />
+                @if (selectedFile) {
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    (click)="removeSelectedLogo(fileInput)"
+                  >
+                    Clear
+                  </button>
+                }
+              </div>
+
+              @if (logoPreview) {
+                <div class="mt-2 d-flex align-items-center gap-3">
+                  <div class="border rounded p-1 bg-light">
+                    <img
+                      [src]="logoPreview"
+                      alt="Selected logo preview"
+                      class="img-fluid"
+                      style="max-height: 80px; max-width: 160px; object-fit: contain;"
+                    />
+                  </div>
+                  <span class="badge bg-info text-dark">Image preview (will be uploaded on save)</span>
+                </div>
+              } @else if (currentLogoPath) {
+                <div class="mt-2 d-flex align-items-center gap-3">
+                  <div class="border rounded p-1 bg-light">
+                    <img
+                      [src]="getLogoUrl(currentLogoPath)"
+                      alt="Current bank logo"
+                      class="img-fluid"
+                      style="max-height: 80px; max-width: 160px; object-fit: contain;"
+                    />
+                  </div>
+                  <span class="text-secondary small">Current logo</span>
+                </div>
+              }
+            </div>
           </div>
 
           <div class="d-flex justify-content-end gap-2 mt-4">
