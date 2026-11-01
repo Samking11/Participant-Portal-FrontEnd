@@ -14,8 +14,12 @@ npm install
 npm start
 ```
 
-Open `http://localhost:4200/`. The login screen remains a local demo login
-using `admin` / `Admin@123`; participant CRUD is connected to the backend API.
+Open `http://localhost:4200/`. The login screen authenticates through
+`POST http://localhost:9081/api/v1/auth/login` using the configured Keycloak
+credentials. The returned access token is kept in `sessionStorage` for the
+browser session and is attached to participant API requests as a bearer token.
+For the development backend, use `admin` / `Password@123` unless those
+credentials have been changed in Keycloak.
 
 Start the backend first:
 

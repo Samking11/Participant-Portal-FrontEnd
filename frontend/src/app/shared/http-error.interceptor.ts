@@ -1,13 +1,22 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { catchError, throwError } from 'rxjs';
+import { Router } from '@angular/router';
+import { AuthService } from '../auth/auth.service';
 import { FeedbackService } from './feedback.service';
 
 export const httpErrorInterceptor: HttpInterceptorFn = (req, next) => {
   const feedback = inject(FeedbackService);
+  const authService = inject(AuthService);
+  const router = inject(Router);
 
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
+      if (error.status === 401) {
+        authService.logout();
+        void router.navigate(['/login']);
+      }
+
       let friendlyMessage = 'An unexpected error occurred. Please try again.';
 
       if (error.error instanceof ErrorEvent) {

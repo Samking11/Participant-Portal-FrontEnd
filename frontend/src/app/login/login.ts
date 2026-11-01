@@ -5,9 +5,6 @@ import { AuthService } from '../auth/auth.service';
 
 type LoginFeedback = { type: 'success'; message: string } | { type: 'error'; message: string };
 
-const DEMO_USERNAME = 'admin';
-const DEMO_PASSWORD = 'Admin@123';
-
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule],
@@ -26,6 +23,7 @@ export class LoginComponent {
   });
 
   readonly feedback = signal<LoginFeedback | null>(null);
+  isSubmitting = false;
 
   login(): void {
     if (this.loginForm.invalid) {
@@ -39,16 +37,20 @@ export class LoginComponent {
 
     const { username, password } = this.loginForm.getRawValue();
 
-    if (username.trim() === DEMO_USERNAME && password === DEMO_PASSWORD) {
-      this.authService.login(username.trim());
-      this.feedback.set({ type: 'success', message: 'Login successful.' });
-      this.router.navigate(['/participants']);
-      return;
-    }
-
-    this.feedback.set({
-      type: 'error',
-      message: 'The username or password is incorrect.',
+    this.isSubmitting = true;
+    this.authService.login(username, password).subscribe({
+      next: () => {
+        this.isSubmitting = false;
+        this.feedback.set({ type: 'success', message: 'Login successful.' });
+        void this.router.navigate(['/participants']);
+      },
+      error: () => {
+        this.isSubmitting = false;
+        this.feedback.set({
+          type: 'error',
+          message: 'The username or password is incorrect.',
+        });
+      },
     });
   }
 
