@@ -34,10 +34,10 @@ Spring Boot backend service for managing Participant Banks and Authentication.
 
 ## Authentication Details
 - **Login Endpoint**: `POST /api/v1/auth/login` (also mapped to `/acs-dev/api/v1/login`)
-- **Default Static Credentials**:
-  - Username: `admin`
-  - Password: `Password@123`
-- **Keycloak Realm**: `http://192.168.20.49:9091/realms/acs` (Client ID: `acs_apis_client_api`)
+- **Development credentials**: supplied through `APP_AUTH_STATIC_USERNAME` and
+  `APP_AUTH_STATIC_PASSWORD` (defaults are intended for local development only).
+- **Keycloak Realm**: configured by the active Spring profile
+  (development client ID defaults to `participant-portal`).
 
 ---
 
@@ -55,7 +55,7 @@ Spring Boot backend service for managing Participant Banks and Authentication.
 
 Access Swagger UI: `http://localhost:9081/swagger-ui.html`
 
-## Static Login Frontend
+## Angular Frontend
 
 The Angular login demo is in the `frontend` directory. From that directory, run:
 
@@ -64,6 +64,17 @@ npm install
 npm start
 ```
 
-Open `http://localhost:4200`. Use `admin` / `Admin@123` to see the success
-message. This task uses client-side demo credentials only; it does not
-authenticate with the backend.
+Open `http://localhost:4200`. The frontend uses the backend login endpoint
+and sends the returned bearer token with protected participant requests. For
+local development, configure `APP_AUTH_STATIC_USERNAME`,
+`APP_AUTH_STATIC_PASSWORD`, and `KEYCLOAK_CLIENT_ID` before starting the
+backend.
+
+The frontend API base URL is configured in
+`frontend/src/environments/environment.ts` and replaced by
+`environment.prod.ts` for production builds. Production uses the same-origin
+`/api/v1` path and requires the gateway to route it to the backend over HTTPS.
+
+The login endpoint returns the backend contract using snake_case token fields:
+`access_token`, `refresh_token`, `token_type`, `expires_in`, and
+`refresh_expires_in`.

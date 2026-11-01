@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 export type ParticipantStatus = 'ACTIVE' | 'INACTIVE';
 
@@ -31,7 +32,8 @@ interface ApiResponse<T> {
 @Injectable({ providedIn: 'root' })
 export class ParticipantService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = 'http://localhost:9081/api/v1/participants';
+  private readonly apiUrl = `${environment.apiUrl}/participants`;
+  private readonly backendUrl = environment.apiUrl.replace(/\/api\/v1$/, '');
 
   readonly participants: Participant[] = [];
 
@@ -105,9 +107,9 @@ export class ParticipantService {
       return logoPath;
     }
     if (logoPath.startsWith('/')) {
-      return `http://localhost:9081${logoPath}`;
+      return `${this.backendUrl}${logoPath}`;
     }
-    return `http://localhost:9081/uploads/logos/${logoPath}`;
+    return `${this.backendUrl}/uploads/logos/${logoPath}`;
   }
 
   private getInstitution(response: ApiResponse<Participant>): Participant {
