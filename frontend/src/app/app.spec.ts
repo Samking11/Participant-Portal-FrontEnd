@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { routes } from './app.routes';
 import { authGuard } from './auth/auth.guard';
+import { authTokenInterceptor } from './auth/auth-token.interceptor';
 import { AuthService } from './auth/auth.service';
 import { LoginComponent } from './login/login';
 import { ParticipantFormComponent } from './participants/participant-form';
@@ -61,20 +62,28 @@ const API_PARTICIPANTS = [
     status: 'INACTIVE' as const,
   },
 ];
+const API_AUTH = 'http://localhost:9081/api/v1/auth/login';
+const TOKEN_RESPONSE = { access_token: 'test-access-token', token_type: 'Bearer' };
 
 describe('LoginComponent', () => {
   let fixture: ComponentFixture<LoginComponent>;
   let navigate: ReturnType<typeof vi.fn>;
   let authService: AuthService;
+  let httpTesting: HttpTestingController;
 
   beforeEach(async () => {
     navigate = vi.fn().mockResolvedValue(true);
     await TestBed.configureTestingModule({
       imports: [LoginComponent],
-      providers: [provideHttpClient(), { provide: Router, useValue: { navigate } }],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: Router, useValue: { navigate } },
+      ],
     }).compileComponents();
 
     authService = TestBed.inject(AuthService);
+    httpTesting = TestBed.inject(HttpTestingController);
     authService.logout();
     fixture = TestBed.createComponent(LoginComponent);
     fixture.detectChanges();
@@ -103,7 +112,7 @@ describe('LoginComponent', () => {
   });
 
   it('navigates to participants and starts session for the demo credentials', async () => {
-    await submitLogin('admin', 'Admin@123');
+    await submitLogin('admin', 'Password@123');
 
     expect(alertMessage()).toContain('Login successful.');
     expect(feedbackAlert().classList.contains('alert-success')).toBe(true);
@@ -139,6 +148,20 @@ describe('LoginComponent', () => {
     fixture.detectChanges();
 
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    if (username.trim() && password) {
+      const request = httpTesting.expectOne(API_AUTH);
+      expect(request.request.body).toEqual({
+        username,
+        password,
+        grant_type: 'password',
+        client_id: 'participant-portal',
+      });
+      if (password === 'incorrect') {
+        request.flush({ message: 'Invalid credentials' }, { status: 401, statusText: 'Unauthorized' });
+      } else {
+        request.flush(TOKEN_RESPONSE);
+      }
+    }
     await fixture.whenStable();
     fixture.detectChanges();
   }
@@ -192,10 +215,14 @@ describe('App routing', () => {
 
 describe('AuthService', () => {
   let authService: AuthService;
+  let httpTesting: HttpTestingController;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
     authService = TestBed.inject(AuthService);
+    httpTesting = TestBed.inject(HttpTestingController);
     authService.logout();
   });
 
@@ -204,13 +231,16 @@ describe('AuthService', () => {
   });
 
   it('records user login and reports authenticated', () => {
-    authService.login('admin');
+    authService.login('admin', 'Password@123').subscribe();
+    httpTesting.expectOne(API_AUTH).flush(TOKEN_RESPONSE);
     expect(authService.isLoggedIn()).toBe(true);
     expect(authService.getCurrentUser()?.username).toBe('admin');
+    expect(authService.getAccessToken()).toBe('test-access-token');
   });
 
   it('clears session on logout', () => {
-    authService.login('admin');
+    authService.login('admin', 'Password@123').subscribe();
+    httpTesting.expectOne(API_AUTH).flush(TOKEN_RESPONSE);
     authService.logout();
     expect(authService.isLoggedIn()).toBe(false);
     expect(authService.getCurrentUser()).toBeNull();
@@ -223,14 +253,14 @@ describe('authGuard', () => {
 
   beforeEach(() => {
     navigate = vi.fn();
+    sessionStorage.removeItem('auth_session');
     TestBed.configureTestingModule({
       providers: [{ provide: Router, useValue: { navigate } }],
     });
-    authService = TestBed.inject(AuthService);
-    authService.logout();
   });
 
   it('blocks navigation and redirects to /login when unauthenticated', () => {
+    authService = TestBed.inject(AuthService);
     const canActivate = TestBed.runInInjectionContext(() => authGuard({} as any, {} as any));
 
     expect(canActivate).toBe(false);
@@ -238,11 +268,51 @@ describe('authGuard', () => {
   });
 
   it('allows access when user is authenticated', () => {
-    authService.login('admin');
+    sessionStorage.setItem(
+      'auth_session',
+      JSON.stringify({ username: 'admin', accessToken: 'test-access-token', loginTime: Date.now() }),
+    );
+    authService = TestBed.inject(AuthService);
     const canActivate = TestBed.runInInjectionContext(() => authGuard({} as any, {} as any));
 
     expect(canActivate).toBe(true);
     expect(navigate).not.toHaveBeenCalled();
+  });
+});
+
+describe('authTokenInterceptor', () => {
+  let http: HttpClient;
+  let httpTesting: HttpTestingController;
+
+  beforeEach(() => {
+    sessionStorage.setItem(
+      'auth_session',
+      JSON.stringify({ username: 'admin', accessToken: 'test-access-token', loginTime: Date.now() }),
+    );
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(withInterceptors([authTokenInterceptor])),
+        provideHttpClientTesting(),
+      ],
+    });
+    http = TestBed.inject(HttpClient);
+    httpTesting = TestBed.inject(HttpTestingController);
+  });
+
+  it('adds the bearer token to API requests', () => {
+    http.get('/api/v1/participants').subscribe();
+
+    const request = httpTesting.expectOne('/api/v1/participants');
+    expect(request.request.headers.get('Authorization')).toBe('Bearer test-access-token');
+    request.flush({ institutions: [] });
+  });
+
+  it('does not add a bearer token to the login request', () => {
+    http.post('http://localhost:9081/api/v1/auth/login', {}).subscribe();
+
+    const request = httpTesting.expectOne('http://localhost:9081/api/v1/auth/login');
+    expect(request.request.headers.has('Authorization')).toBe(false);
+    request.flush(TOKEN_RESPONSE);
   });
 });
 
@@ -263,8 +333,11 @@ describe('ParticipantsComponent', () => {
       ],
     }).compileComponents();
 
+    sessionStorage.setItem(
+      'auth_session',
+      JSON.stringify({ username: 'admin', accessToken: 'test-access-token', loginTime: Date.now() }),
+    );
     authService = TestBed.inject(AuthService);
-    authService.login('admin');
     httpTesting = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ParticipantsComponent);
     httpTesting
@@ -550,12 +623,19 @@ describe('httpErrorInterceptor', () => {
   let http: HttpClient;
   let httpTesting: HttpTestingController;
   let feedbackService: FeedbackService;
+  let navigate: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    navigate = vi.fn();
+    sessionStorage.setItem(
+      'auth_session',
+      JSON.stringify({ username: 'admin', accessToken: 'test-access-token', loginTime: Date.now() }),
+    );
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(withInterceptors([httpErrorInterceptor])),
         provideHttpClientTesting(),
+        { provide: Router, useValue: { navigate } },
       ],
     });
 
@@ -588,6 +668,16 @@ describe('httpErrorInterceptor', () => {
 
     expect(feedbackService.toast()?.type).toBe('error');
     expect(feedbackService.toast()?.message).toContain('Unable to connect to the backend server');
+  });
+
+  it('clears authentication and redirects after a 401 response', () => {
+    http.get('/api/v1/participants').subscribe({ error: () => {} });
+
+    const req = httpTesting.expectOne('/api/v1/participants');
+    req.flush({ message: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
+
+    expect(sessionStorage.getItem('auth_session')).toBeNull();
+    expect(navigate).toHaveBeenCalledWith(['/login']);
   });
 });
 
