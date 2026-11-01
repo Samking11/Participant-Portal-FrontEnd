@@ -34,10 +34,10 @@ Spring Boot backend service for managing Participant Banks and Authentication.
 
 ## Authentication Details
 - **Login Endpoint**: `POST /api/v1/auth/login` (also mapped to `/acs-dev/api/v1/login`)
-- **Default Static Credentials**:
-  - Username: `admin`
-  - Password: `Password@123`
-- **Keycloak Realm**: `http://192.168.20.49:9091/realms/acs` (Client ID: `acs_apis_client_api`)
+- **Development credentials**: supplied through `APP_AUTH_STATIC_USERNAME` and
+  `APP_AUTH_STATIC_PASSWORD` (defaults are intended for local development only).
+- **Keycloak Realm**: configured by the active Spring profile
+  (development client ID defaults to `participant-portal`).
 
 ---
 
@@ -66,9 +66,15 @@ npm start
 
 Open `http://localhost:4200`. The frontend uses the backend login endpoint
 and sends the returned bearer token with protected participant requests. For
-the development backend, use `admin` / `Password@123` unless those credentials
-have been changed in Keycloak.
+local development, configure `APP_AUTH_STATIC_USERNAME`,
+`APP_AUTH_STATIC_PASSWORD`, and `KEYCLOAK_CLIENT_ID` before starting the
+backend.
 
 The frontend API base URL is configured in
 `frontend/src/environments/environment.ts` and replaced by
-`environment.prod.ts` for production builds.
+`environment.prod.ts` for production builds. Production uses the same-origin
+`/api/v1` path and requires the gateway to route it to the backend over HTTPS.
+
+The login endpoint returns the backend contract using snake_case token fields:
+`access_token`, `refresh_token`, `token_type`, `expires_in`, and
+`refresh_expires_in`.

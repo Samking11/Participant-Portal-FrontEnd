@@ -1,3 +1,4 @@
 export const environment = {
-  apiUrl: 'http://localhost:9081/api/v1',
+  // Production is served behind the frontend gateway at the same origin.
+  apiUrl: '/api/v1',
 };

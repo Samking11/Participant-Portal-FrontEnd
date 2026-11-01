@@ -9,7 +9,9 @@ export const authTokenInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
   const accessToken = authService.getAccessToken();
 
-  if (!accessToken || req.url === LOGIN_URL) {
+  const isApiRequest = req.url.startsWith(environment.apiUrl);
+
+  if (!accessToken || !isApiRequest || req.url === LOGIN_URL) {
     return next(req);
   }
 

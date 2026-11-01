@@ -13,6 +13,7 @@ import { ParticipantsComponent } from './participants/participants';
 import { ParticipantService } from './participants/participant.service';
 import { FeedbackService } from './shared/feedback.service';
 import { httpErrorInterceptor } from './shared/http-error.interceptor';
+import { environment } from '../environments/environment';
 
 const API_PARTICIPANTS = [
   {
@@ -300,9 +301,9 @@ describe('authTokenInterceptor', () => {
   });
 
   it('adds the bearer token to API requests', () => {
-    http.get('/api/v1/participants').subscribe();
+    http.get(`${environment.apiUrl}/participants`).subscribe();
 
-    const request = httpTesting.expectOne('/api/v1/participants');
+    const request = httpTesting.expectOne(`${environment.apiUrl}/participants`);
     expect(request.request.headers.get('Authorization')).toBe('Bearer test-access-token');
     request.flush({ institutions: [] });
   });
