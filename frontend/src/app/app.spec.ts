@@ -155,7 +155,7 @@ describe('LoginComponent', () => {
         username,
         password,
         grant_type: 'password',
-        client_id: 'participant-portal',
+        client_id: 'acs_apis_client_api',
       });
       if (password === 'incorrect') {
         request.flush({ message: 'Invalid credentials' }, { status: 401, statusText: 'Unauthorized' });

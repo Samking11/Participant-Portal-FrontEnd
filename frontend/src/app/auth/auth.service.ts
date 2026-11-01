@@ -13,7 +13,7 @@ export interface LoginRequest {
   username: string;
   password: string;
   grant_type: 'password';
-  client_id: 'participant-portal';
+  client_id: 'acs_apis_client_api';
 }
 
 export interface TokenResponse {
@@ -43,7 +43,7 @@ export class AuthService {
       username: username.trim(),
       password,
       grant_type: 'password',
-      client_id: 'participant-portal',
+      client_id: 'acs_apis_client_api',
     };
 
     return this.http.post<TokenResponse>(this.apiUrl, request).pipe(

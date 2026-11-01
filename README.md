@@ -37,7 +37,7 @@ Spring Boot backend service for managing Participant Banks and Authentication.
 - **Development credentials**: supplied through `APP_AUTH_STATIC_USERNAME` and
   `APP_AUTH_STATIC_PASSWORD` (defaults are intended for local development only).
 - **Keycloak Realm**: configured by the active Spring profile
-  (development client ID defaults to `participant-portal`).
+  (development client ID defaults to `acs_apis_client_api`).
 
 ---
 
