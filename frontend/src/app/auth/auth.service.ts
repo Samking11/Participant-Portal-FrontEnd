@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { Observable, map, tap } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 export interface UserSession {
   username: string;
@@ -28,7 +29,7 @@ export interface TokenResponse {
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly storageKey = 'auth_session';
-  private readonly apiUrl = 'http://localhost:9081/api/v1/auth/login';
+  private readonly apiUrl = `${environment.apiUrl}/auth/login`;
   private readonly authenticated = signal<boolean>(this.hasValidSession());
 
   readonly isAuthenticated = this.authenticated.asReadonly();

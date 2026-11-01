@@ -55,7 +55,7 @@ Spring Boot backend service for managing Participant Banks and Authentication.
 
 Access Swagger UI: `http://localhost:9081/swagger-ui.html`
 
-## Static Login Frontend
+## Angular Frontend
 
 The Angular login demo is in the `frontend` directory. From that directory, run:
 
@@ -64,6 +64,11 @@ npm install
 npm start
 ```
 
-Open `http://localhost:4200`. Use `admin` / `Admin@123` to see the success
-message. This task uses client-side demo credentials only; it does not
-authenticate with the backend.
+Open `http://localhost:4200`. The frontend uses the backend login endpoint
+and sends the returned bearer token with protected participant requests. For
+the development backend, use `admin` / `Password@123` unless those credentials
+have been changed in Keycloak.
+
+The frontend API base URL is configured in
+`frontend/src/environments/environment.ts` and replaced by
+`environment.prod.ts` for production builds.
